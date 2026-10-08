@@ -40,21 +40,27 @@ final class quiz_question_set {
     /**
      * Summarise the questions a quiz uses, without changing anything.
      *
-     * A random slot has no single fixed question, so its whole source pool (every question its
-     * filter would ever draw from: the category, including subcategories and tags if the filter
-     * uses them) is included, using core's own random_question_loader to resolve that pool rather
-     * than re-implementing category/tag filter matching.
+     * A random slot has no single fixed question. With $expandrandom true, its whole source pool
+     * (every question its filter would ever draw from: the category, including subcategories and
+     * tags if the filter uses them) is included, using core's own random_question_loader to
+     * resolve that pool rather than re-implementing category/tag filter matching. With
+     * $expandrandom false, each random slot instead contributes one representative question
+     * (distinct per slot, even when several slots share the same filter), matching how many
+     * questions the quiz itself actually uses rather than its whole source category.
      *
      * @param object $cm The quiz course module (cm_info or record).
+     * @param bool $expandrandom Whether to include every question a random slot could draw from
+     *             (true), or just one representative question per random slot (false).
      * @return array With 'questionids' (questionid => category id), 'categories' (count of distinct
      *               subcategories) and 'randomslots' (count of random question slots found).
      */
-    public static function analyse(object $cm): array {
+    public static function analyse(object $cm, bool $expandrandom = true): array {
         global $DB;
 
         $quizcontextid = \context_module::instance($cm->id)->id;
         $questionids = [];
         $randomfilters = [];
+        $slotfilters = [];
         $randomslots = 0;
         $slots = $DB->get_records('quiz_slots', ['quizid' => $cm->instance], 'slot ASC', 'id');
         foreach ($slots as $slot) {
@@ -87,16 +93,35 @@ final class quiz_question_set {
                 if ($filter === null) {
                     continue;
                 }
-                // Several slots commonly share the same filter (e.g. "5 random questions from
-                // category X"); key by the filter itself so that pool is only resolved once.
-                $randomfilters[sha1(json_encode($filter))] = $filter;
+                if ($expandrandom) {
+                    // Several slots commonly share the same filter (e.g. "5 random questions from
+                    // category X"); key by the filter itself so that pool is only resolved once.
+                    $randomfilters[sha1(json_encode($filter))] = $filter;
+                } else {
+                    $slotfilters[] = $filter;
+                }
             }
         }
 
-        foreach ($randomfilters as $filter) {
-            foreach (self::questions_for_filter($filter) as $questionid => $categoryid) {
-                if (!isset($questionids[$questionid])) {
-                    $questionids[$questionid] = $categoryid;
+        if ($expandrandom) {
+            foreach ($randomfilters as $filter) {
+                foreach (self::questions_for_filter($filter) as $questionid => $categoryid) {
+                    if (!isset($questionids[$questionid])) {
+                        $questionids[$questionid] = $categoryid;
+                    }
+                }
+            }
+        } else if ($slotfilters) {
+            // One shared loader, so slots with an identical filter still each get a distinct
+            // question (the loader never returns the same question twice in its lifetime).
+            $loader = self::make_random_loader();
+            foreach ($slotfilters as $filter) {
+                $questionid = $loader->get_next_filtered_question_id($filter);
+                if ($questionid !== null && !isset($questionids[$questionid])) {
+                    $categoryid = self::category_for_question($questionid);
+                    if ($categoryid !== null) {
+                        $questionids[$questionid] = $categoryid;
+                    }
                 }
             }
         }
@@ -132,35 +157,57 @@ final class quiz_question_set {
     /**
      * Resolve every question a random slot's filter could draw from.
      *
-     * Drains \core_question\local\bank\random_question_loader completely instead of asking for
-     * one random pick, so this returns the filter's whole pool (the entire source category or
-     * categories, including subcategories and tags if the filter uses them), not a sample.
+     * Drains a fresh random_question_loader completely instead of asking for one random pick, so
+     * this returns the filter's whole pool (the entire source category or categories, including
+     * subcategories and tags if the filter uses them), not a sample.
      *
      * @param array $filter A normalised filter, as returned by normalise_filter().
      * @return array questionid => category id.
      */
     private static function questions_for_filter(array $filter): array {
-        global $CFG, $DB;
+        $loader = self::make_random_loader();
+        $found = [];
+        while (($questionid = $loader->get_next_filtered_question_id($filter)) !== null) {
+            $categoryid = self::category_for_question($questionid);
+            if ($categoryid !== null) {
+                $found[$questionid] = $categoryid;
+            }
+        }
+        return $found;
+    }
+
+    /**
+     * Build a random_question_loader that does not exclude any question based on prior usage.
+     *
+     * @return \core_question\local\bank\random_question_loader
+     */
+    private static function make_random_loader(): \core_question\local\bank\random_question_loader {
+        global $CFG;
 
         // Qubaid_list is a legacy class, not autoloaded; engine/lib.php pulls in datalib.php
         // along with the other engine files it depends on, in the order they need.
         require_once($CFG->dirroot . '/question/engine/lib.php');
 
-        $loader = new \core_question\local\bank\random_question_loader(new \qubaid_list([]));
-        $found = [];
-        while (($questionid = $loader->get_next_filtered_question_id($filter)) !== null) {
-            $categoryid = $DB->get_field_sql(
-                "SELECT qbe.questioncategoryid
-                   FROM {question_versions} qv
-                   JOIN {question_bank_entries} qbe ON qbe.id = qv.questionbankentryid
-                  WHERE qv.questionid = :questionid",
-                ['questionid' => $questionid]
-            );
-            if ($categoryid !== false) {
-                $found[$questionid] = (int) $categoryid;
-            }
-        }
-        return $found;
+        return new \core_question\local\bank\random_question_loader(new \qubaid_list([]));
+    }
+
+    /**
+     * Look up the category a question currently belongs to.
+     *
+     * @param int $questionid The question id.
+     * @return int|null The question category id, or null if it could not be resolved.
+     */
+    private static function category_for_question(int $questionid): ?int {
+        global $DB;
+
+        $categoryid = $DB->get_field_sql(
+            "SELECT qbe.questioncategoryid
+               FROM {question_versions} qv
+               JOIN {question_bank_entries} qbe ON qbe.id = qv.questionbankentryid
+              WHERE qv.questionid = :questionid",
+            ['questionid' => $questionid]
+        );
+        return $categoryid === false ? null : (int) $categoryid;
     }
 
     /**
@@ -201,17 +248,19 @@ final class quiz_question_set {
      *
      * @param object $cm The quiz course module (cm_info or record).
      * @param \stdClass $course The course the quiz belongs to.
+     * @param bool $expandrandom Whether random slots contribute their whole source category
+     *             (true), or just one representative question per slot (false). See analyse().
      * @return \stdClass The subcategory, with the copied questions in it.
      * @throws \moodle_exception If there are no questions to copy, or the copy fails.
      */
-    public static function build_subcategory(object $cm, \stdClass $course): \stdClass {
+    public static function build_subcategory(object $cm, \stdClass $course, bool $expandrandom = true): \stdClass {
         global $CFG, $DB;
 
         require_once($CFG->libdir . '/questionlib.php');
         require_once($CFG->dirroot . '/question/engine/bank.php');
         require_once($CFG->dirroot . '/question/format/xml/format.php');
 
-        $analysis = self::analyse($cm);
+        $analysis = self::analyse($cm, $expandrandom);
         if (empty($analysis['questionids'])) {
             throw new \moodle_exception('errornoquestions', 'block_exportquizquestions');
         }

@@ -113,6 +113,20 @@ class block_exportquizquestions extends block_base {
                 ['for' => 'block_exportquizquestions_format', 'class' => 'form-label small mb-1']);
             $html .= html_writer::select($formats, 'format', $defaultformat, false,
                 ['id' => 'block_exportquizquestions_format', 'class' => 'custom-select mb-2']);
+            $html .= html_writer::tag('div', get_string('randommode', 'block_exportquizquestions'),
+                ['class' => 'form-label small mb-1']);
+            $html .= html_writer::start_tag('div', ['class' => 'form-check mb-1']);
+            $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'randommode', 'value' => 'sample',
+                'id' => 'block_exportquizquestions_randommode_sample', 'class' => 'form-check-input', 'checked' => 'checked']);
+            $html .= html_writer::tag('label', get_string('randommode_sample', 'block_exportquizquestions'),
+                ['for' => 'block_exportquizquestions_randommode_sample', 'class' => 'form-check-label small']);
+            $html .= html_writer::end_tag('div');
+            $html .= html_writer::start_tag('div', ['class' => 'form-check mb-2']);
+            $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'randommode', 'value' => 'full',
+                'id' => 'block_exportquizquestions_randommode_full', 'class' => 'form-check-input']);
+            $html .= html_writer::tag('label', get_string('randommode_full', 'block_exportquizquestions'),
+                ['for' => 'block_exportquizquestions_randommode_full', 'class' => 'form-check-label small']);
+            $html .= html_writer::end_tag('div');
             $html .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
             $html .= html_writer::tag('button', get_string('export', 'block_exportquizquestions'),
                 ['type' => 'submit', 'class' => 'btn btn-secondary btn-sm']);

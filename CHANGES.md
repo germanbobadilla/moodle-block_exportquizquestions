@@ -2,6 +2,19 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.1.0 - 2026-10-08
+
+* Added a choice to the export form for how random question slots are handled: "Only as
+  many questions as the quiz uses" (one representative question per random slot, the new
+  default) or "All questions from their source categories" (the previous 1.0.2 behaviour,
+  which can be very large if the source category is a big shared pool).
+* "Only as many" uses the same random question loader as before, but asks for one pick per
+  slot instead of draining the whole pool; slots that share an identical filter each still
+  get a distinct question.
+* Verified both modes against the real quiz with 5 random slots on Moodle 5.2 (sample mode:
+  5 questions; full mode: unchanged at 2,261) and against a synthetic 3-random-slot quiz
+  sharing an 8-question pool on Moodle 4.5 LTS (sample mode: 3; full mode: 8).
+
 ## 1.0.2 - 2026-10-08
 
 * Random question slots are no longer skipped. Every question in the slot's source

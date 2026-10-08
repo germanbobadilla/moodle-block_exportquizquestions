@@ -27,6 +27,7 @@ require_once($CFG->libdir . '/questionlib.php');
 
 $cmid = required_param('cmid', PARAM_INT);
 $format = required_param('format', PARAM_ALPHANUMEXT);
+$randommode = optional_param('randommode', 'sample', PARAM_ALPHA);
 require_sesskey();
 
 $cm = get_coursemodule_from_id('quiz', $cmid, 0, false, MUST_EXIST);
@@ -40,7 +41,7 @@ if (!array_key_exists($format, $formats)) {
     throw new moodle_exception('errorformat', 'block_exportquizquestions', '', $format);
 }
 
-$subcategory = \block_exportquizquestions\quiz_question_set::build_subcategory($cm, $course);
+$subcategory = \block_exportquizquestions\quiz_question_set::build_subcategory($cm, $course, $randommode === 'full');
 
 require_once($CFG->dirroot . "/question/format/{$format}/format.php");
 $classname = 'qformat_' . $format;
