@@ -2,6 +2,17 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.0.2 - 2026-10-08
+
+* Random question slots are no longer skipped. Every question in the slot's source
+  category (including subcategories and tags, if the filter uses them) is now included
+  in the copy, resolved using core's own random question loader rather than
+  re-implementing the filter matching. Several slots sharing the same filter (e.g.
+  "5 random questions from category X") only resolve that pool once.
+* Verified against a real quiz with 5 random slots pulling from a shared category and
+  subcategory on Moodle 5.2, and against a synthetic random slot (added the same way
+  Moodle's own "Add random questions" feature does) on Moodle 4.5 LTS.
+
 ## 1.0.1 - 2026-10-08
 
 * Fixed quizzes whose slots use a "hidden" question version (current for the quiz, but

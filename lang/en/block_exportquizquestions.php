@@ -35,5 +35,5 @@ $string['noquizzes'] = 'This course has no quizzes.';
 $string['pluginname'] = 'Export Quiz Questions';
 $string['privacy:metadata'] = 'The Export Quiz Questions block stores no personal data.';
 $string['quizzes'] = 'Quiz';
-$string['randomwarning'] = '{$a} random question slots are not copied; only questions chosen directly are exported.';
+$string['randomwarning'] = '{$a} random question slots were found; every question in their source categories was included.';
 $string['subcategoryhelp'] = 'Each export copies the quiz questions into a subcategory named after the quiz, in this course\'s question bank, and exports that subcategory.';

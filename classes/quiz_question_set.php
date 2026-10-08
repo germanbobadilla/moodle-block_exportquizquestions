@@ -40,15 +40,22 @@ final class quiz_question_set {
     /**
      * Summarise the questions a quiz uses, without changing anything.
      *
+     * A random slot has no single fixed question, so its whole source pool (every question its
+     * filter would ever draw from: the category, including subcategories and tags if the filter
+     * uses them) is included, using core's own random_question_loader to resolve that pool rather
+     * than re-implementing category/tag filter matching.
+     *
      * @param object $cm The quiz course module (cm_info or record).
      * @return array With 'questionids' (questionid => category id), 'categories' (count of distinct
-     *               subcategories) and 'randomslots' (count of random question slots, which are not copied).
+     *               subcategories) and 'randomslots' (count of random question slots found).
      */
     public static function analyse(object $cm): array {
         global $DB;
 
         $quizcontextid = \context_module::instance($cm->id)->id;
         $questionids = [];
+        $randomfilters = [];
+        $randomslots = 0;
         $slots = $DB->get_records('quiz_slots', ['quizid' => $cm->instance], 'slot ASC', 'id');
         foreach ($slots as $slot) {
             $refs = $DB->get_records('question_references', [
@@ -67,24 +74,93 @@ final class quiz_question_set {
                     $questionids[(int) $version->questionid] = (int) $entry->questioncategoryid;
                 }
             }
+
+            $setrefs = $DB->get_records('question_set_references', [
+                'usingcontextid' => $quizcontextid,
+                'component' => 'mod_quiz',
+                'questionarea' => 'slot',
+                'itemid' => $slot->id,
+            ]);
+            foreach ($setrefs as $setref) {
+                $randomslots++;
+                $filter = self::normalise_filter($setref->filtercondition);
+                if ($filter === null) {
+                    continue;
+                }
+                // Several slots commonly share the same filter (e.g. "5 random questions from
+                // category X"); key by the filter itself so that pool is only resolved once.
+                $randomfilters[sha1(json_encode($filter))] = $filter;
+            }
         }
 
-        $randomslots = $DB->count_records_sql(
-            "SELECT COUNT(*)
-               FROM {question_set_references} qsr
-               JOIN {quiz_slots} s ON s.id = qsr.itemid
-              WHERE qsr.usingcontextid = :contextid
-                AND qsr.component = 'mod_quiz'
-                AND qsr.questionarea = 'slot'
-                AND s.quizid = :quizid",
-            ['contextid' => $quizcontextid, 'quizid' => $cm->instance]
-        );
+        foreach ($randomfilters as $filter) {
+            foreach (self::questions_for_filter($filter) as $questionid => $categoryid) {
+                if (!isset($questionids[$questionid])) {
+                    $questionids[$questionid] = $categoryid;
+                }
+            }
+        }
 
         return [
             'questionids' => $questionids,
             'categories' => count(array_unique(array_values($questionids))),
-            'randomslots' => (int) $randomslots,
+            'randomslots' => $randomslots,
         ];
+    }
+
+    /**
+     * Normalise a question_set_references.filtercondition value into its 'filter' array.
+     *
+     * Handles both the pre-4.3 flat format and the current structured format, the same way
+     * \mod_quiz\question\bank\qbank_helper::get_question_structure() does.
+     *
+     * @param string|null $filtercondition The raw filtercondition column value.
+     * @return array|null The normalised filter, or null if there is nothing usable to decode.
+     */
+    private static function normalise_filter(?string $filtercondition): ?array {
+        if (!$filtercondition) {
+            return null;
+        }
+        $decoded = json_decode($filtercondition, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $normalised = \core_question\question_reference_manager::convert_legacy_set_reference_filter_condition($decoded);
+        return $normalised['filter'] ?? null;
+    }
+
+    /**
+     * Resolve every question a random slot's filter could draw from.
+     *
+     * Drains \core_question\local\bank\random_question_loader completely instead of asking for
+     * one random pick, so this returns the filter's whole pool (the entire source category or
+     * categories, including subcategories and tags if the filter uses them), not a sample.
+     *
+     * @param array $filter A normalised filter, as returned by normalise_filter().
+     * @return array questionid => category id.
+     */
+    private static function questions_for_filter(array $filter): array {
+        global $CFG, $DB;
+
+        // Qubaid_list is a legacy class, not autoloaded; engine/lib.php pulls in datalib.php
+        // along with the other engine files it depends on, in the order they need.
+        require_once($CFG->dirroot . '/question/engine/lib.php');
+
+        $loader = new \core_question\local\bank\random_question_loader(new \qubaid_list([]));
+        $found = [];
+        while (($questionid = $loader->get_next_filtered_question_id($filter)) !== null) {
+            $categoryid = $DB->get_field_sql(
+                "SELECT qbe.questioncategoryid
+                   FROM {question_versions} qv
+                   JOIN {question_bank_entries} qbe ON qbe.id = qv.questionbankentryid
+                  WHERE qv.questionid = :questionid",
+                ['questionid' => $questionid]
+            );
+            if ($categoryid !== false) {
+                $found[$questionid] = (int) $categoryid;
+            }
+        }
+        return $found;
     }
 
     /**
