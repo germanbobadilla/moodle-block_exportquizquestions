@@ -88,11 +88,17 @@ final class quiz_question_set {
     }
 
     /**
-     * Pick the version a quiz slot uses: the pinned version, or the latest ready one.
+     * Pick the version a quiz slot uses: the pinned version, or the latest non-draft one.
+     *
+     * Matches the COALESCE(qr.version, usableversion, anyversion) logic in core's
+     * \mod_quiz\question\bank\qbank_helper::get_question_structure(): a question that is
+     * 'hidden' (soft-deleted from the bank but still in use by this slot) is a usable
+     * version, same as 'ready'. Only 'draft' versions are skipped, and only when a
+     * non-draft version exists to prefer instead.
      *
      * @param \stdClass $ref The question reference row for the slot.
      * @param int $entryid The question bank entry id.
-     * @return \stdClass|null The question version, or null if none is usable.
+     * @return \stdClass|null The question version, or null if none exists.
      */
     private static function version_for(\stdClass $ref, int $entryid): ?\stdClass {
         global $DB;
@@ -103,12 +109,15 @@ final class quiz_question_set {
             return $version ?: null;
         }
         $versions = $DB->get_records('question_versions', ['questionbankentryid' => $entryid], 'version DESC');
+        if (!$versions) {
+            return null;
+        }
         foreach ($versions as $version) {
-            if ($version->status === question_version_status::QUESTION_STATUS_READY) {
+            if ($version->status !== question_version_status::QUESTION_STATUS_DRAFT) {
                 return $version;
             }
         }
-        return null;
+        return reset($versions);
     }
 
     /**
@@ -144,9 +153,16 @@ final class quiz_question_set {
         $subcategory = self::find_or_create_subcategory($cm->name, $bankcontext->id, (int) $top->id);
         self::empty_subcategory($subcategory);
 
+        // Core's qformat_default::exportprocess() silently skips any question whose status is
+        // 'hidden' (its own built-in assumption that only bank-visible questions get exported). A
+        // slot can legitimately use a 'hidden' version (it is current for the quiz, just no
+        // longer addable to new quizzes elsewhere), so force 'ready' on this copy: it is about
+        // to become a fresh entry in the quiz's own subcategory, not a re-export of the original.
         $questions = [];
         foreach (array_keys($analysis['questionids']) as $questionid) {
-            $questions[] = \question_bank::load_question_data($questionid);
+            $questiondata = \question_bank::load_question_data($questionid);
+            $questiondata->status = question_version_status::QUESTION_STATUS_READY;
+            $questions[] = $questiondata;
         }
 
         $xmlformat = new \qformat_xml();

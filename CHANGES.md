@@ -2,6 +2,16 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.0.1 - 2026-10-08
+
+* Fixed quizzes whose slots use a "hidden" question version (current for the quiz, but
+  no longer addable to new quizzes from the bank) being reported as having no questions
+  to export. The quiz engine treats a hidden version as usable as long as it isn't a
+  draft; the plugin now matches that rule instead of requiring "ready".
+* Fixed the copy step for such questions: core's own XML export skips "hidden"
+  questions outright, so the plugin now resets the status on its internal copy before
+  exporting it into the quiz's subcategory, where it becomes a normal, fully usable entry.
+
 ## 1.0.0 - 2026-10-08
 
 * Initial release.
