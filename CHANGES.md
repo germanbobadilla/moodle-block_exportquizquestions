@@ -8,6 +8,10 @@ All notable changes to this plugin are documented here.
   many questions as the quiz uses" (one representative question per random slot, the new
   default) or "All questions from their source categories" (the previous 1.0.2 behaviour,
   which can be very large if the source category is a big shared pool).
+* Verified on Moodle 5.3 LTS (2026-10-10): no code changes were needed. Confirmed via a
+  full uninstall and reinstall through Moodle's own plugin manager (not just continued
+  operation after an in-place core upgrade), plus the block's rendering and a full HTTP
+  export round trip, all against real course data.
 * "Only as many" uses the same random question loader as before, but asks for one pick per
   slot instead of draining the whole pool; slots that share an identical filter each still
   get a distinct question.

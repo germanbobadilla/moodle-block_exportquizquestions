@@ -19,16 +19,21 @@ When you export a quiz:
 
 Each export rebuilds the subcategory, so it always matches the quiz's current questions.
 
-Random question slots are not copied; the block shows a warning when a quiz has any.
+Random question slots have no single fixed question, so the export form lets you choose
+how they're handled: copy only as many questions as the quiz actually uses (one
+representative question per random slot, the default), or copy every question in the
+slot's source category (including subcategories and tags, if the filter uses them).
 
 Only users who can manage the question bank (editing teachers and managers) see the
 block and can export.
 
 ## Requirements
 
-* Moodle 4.0 or later (`$plugin->requires = 2022041900`). Tested on Moodle 4.5 LTS
-  and Moodle 5.2: question categories live in the course context on 4.x and in a
-  question bank activity on 5.x, and the block handles both.
+* Moodle 4.0 or later (`$plugin->requires = 2022041900`). Tested on Moodle 4.5 LTS,
+  5.2, and 5.3 LTS: question categories live in the course context on 4.x and in a
+  question bank activity on 5.x, and the block handles both. Verified on 5.3 via a
+  full uninstall/reinstall through Moodle's own plugin manager, not just continued
+  operation after a core upgrade.
 
 ## Installation
 
@@ -48,7 +53,9 @@ php admin/cli/upgrade.php
 
 1. Open a course and turn editing on.
 2. Add the **Export Quiz Questions** block.
-3. Choose a quiz and a format, then select **Export**.
+3. Choose a quiz and a format. If the quiz has random question slots, choose whether to
+   export only as many questions as the quiz uses or every question in their source
+   categories, then select **Export**.
 
 ## Capabilities
 
