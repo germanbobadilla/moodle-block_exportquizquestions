@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.2.1 - 2026-10-10
+
+* The quiz dropdown is now disabled (and visibly greyed out) whenever "All quizzes in
+  this course" is selected, instead of staying active but ignored.
+* Replaced the longer inline help text on the export form with the standard Moodle "?"
+  help icon next to the "Download" and "Random question slots" labels.
+
 ## 1.2.0 - 2026-10-10
 
 * Restructured where subcategories are created: every course now gets one

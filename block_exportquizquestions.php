@@ -84,7 +84,7 @@ class block_exportquizquestions extends block_base {
             return $this->content;
         }
 
-        global $CFG;
+        global $CFG, $OUTPUT;
         require_once($CFG->libdir . '/questionlib.php');
         $quizzes = get_fast_modinfo($course)->get_instances_of('quiz');
         $formats = get_import_export_formats('export');
@@ -105,7 +105,9 @@ class block_exportquizquestions extends block_base {
                 'action' => (new moodle_url('/blocks/exportquizquestions/export.php'))->out(false),
                 'class' => 'block_exportquizquestions_form',
             ]);
-            $html .= html_writer::tag('div', get_string('mode', 'block_exportquizquestions'),
+            $html .= html_writer::tag('div',
+                get_string('mode', 'block_exportquizquestions') .
+                    $OUTPUT->help_icon('mode', 'block_exportquizquestions'),
                 ['class' => 'form-label small mb-1']);
             $html .= html_writer::start_tag('div', ['class' => 'form-check mb-1']);
             $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'mode', 'value' => 'single',
@@ -123,12 +125,13 @@ class block_exportquizquestions extends block_base {
                 ['for' => 'block_exportquizquestions_quiz', 'class' => 'form-label small mb-1']);
             $html .= html_writer::select($options, 'cmid', array_key_first($options), false,
                 ['id' => 'block_exportquizquestions_quiz', 'class' => 'custom-select mb-2']);
-            $html .= html_writer::div(get_string('mode_singlehelp', 'block_exportquizquestions'), 'small text-muted mb-2');
             $html .= html_writer::tag('label', get_string('format', 'block_exportquizquestions'),
                 ['for' => 'block_exportquizquestions_format', 'class' => 'form-label small mb-1']);
             $html .= html_writer::select($formats, 'format', $defaultformat, false,
                 ['id' => 'block_exportquizquestions_format', 'class' => 'custom-select mb-2']);
-            $html .= html_writer::tag('div', get_string('randommode', 'block_exportquizquestions'),
+            $html .= html_writer::tag('div',
+                get_string('randommode', 'block_exportquizquestions') .
+                    $OUTPUT->help_icon('randommode', 'block_exportquizquestions'),
                 ['class' => 'form-label small mb-1']);
             $html .= html_writer::start_tag('div', ['class' => 'form-check mb-1']);
             $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'randommode', 'value' => 'sample',
@@ -147,6 +150,9 @@ class block_exportquizquestions extends block_base {
             $html .= html_writer::tag('button', get_string('export', 'block_exportquizquestions'),
                 ['type' => 'submit', 'class' => 'btn btn-secondary btn-sm']);
             $html .= html_writer::end_tag('form');
+
+            $this->page->requires->js_call_amd('block_exportquizquestions/toggle', 'init',
+                ['block_exportquizquestions_quiz', 'mode']);
         }
 
         $this->content->text = $html;
