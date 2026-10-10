@@ -246,14 +246,26 @@ final class quiz_question_set {
     /**
      * Create or refresh the quiz's subcategory and copy the quiz's questions into it.
      *
+     * The subcategory is created under the course's "[shortname] | Quizzes" category (created if
+     * needed), not directly under the question bank's top category, so every quiz in a course
+     * groups under one shared, questionless parent. Pass $parentcategory when it has already been
+     * resolved (as build_all_subcategories() does), to avoid resolving it again per quiz.
+     *
      * @param object $cm The quiz course module (cm_info or record).
      * @param \stdClass $course The course the quiz belongs to.
      * @param bool $expandrandom Whether random slots contribute their whole source category
      *             (true), or just one representative question per slot (false). See analyse().
+     * @param \stdClass|null $parentcategory The course's "[shortname] | Quizzes" category, if
+     *             already resolved. Resolved automatically when not given.
      * @return \stdClass The subcategory, with the copied questions in it.
      * @throws \moodle_exception If there are no questions to copy, or the copy fails.
      */
-    public static function build_subcategory(object $cm, \stdClass $course, bool $expandrandom = true): \stdClass {
+    public static function build_subcategory(
+        object $cm,
+        \stdClass $course,
+        bool $expandrandom = true,
+        ?\stdClass $parentcategory = null
+    ): \stdClass {
         global $CFG, $DB;
 
         require_once($CFG->libdir . '/questionlib.php');
@@ -266,16 +278,9 @@ final class quiz_question_set {
         }
 
         $coursecontext = \context_course::instance($course->id);
-        if (class_exists('\core_question\local\bank\question_bank_helper')) {
-            // Moodle 5.0 and later keep question categories in question bank activities.
-            $bank = \core_question\local\bank\question_bank_helper::get_default_open_instance_system_type($course, true);
-            $bankcontext = \context_module::instance($bank->id);
-        } else {
-            // Moodle 4.x keeps question categories in the course context.
-            $bankcontext = $coursecontext;
-        }
-        $top = question_get_top_category($bankcontext->id, true);
-        $subcategory = self::find_or_create_subcategory($cm->name, $bankcontext->id, (int) $top->id);
+        $parentcategory ??= self::find_or_create_course_quizzes_category($course);
+        $subcategory = self::find_or_create_subcategory(
+            $cm->name, (int) $parentcategory->contextid, (int) $parentcategory->id);
         self::empty_subcategory($subcategory);
 
         // Core's qformat_default::exportprocess() silently skips any question whose status is
@@ -329,11 +334,83 @@ final class quiz_question_set {
     }
 
     /**
-     * Find the quiz's subcategory under the course top category, or create it.
+     * Rebuild every quiz's subcategory in the course, under one shared "[shortname] | Quizzes"
+     * category.
      *
-     * @param string $name The quiz name, used as the subcategory name.
+     * A quiz with no exportable questions (see analyse()) is skipped rather than aborting the
+     * whole run, so one empty or broken quiz does not block the rest of the course.
+     *
+     * @param \stdClass $course The course to build every quiz's subcategory for.
+     * @param bool $expandrandom Whether random slots contribute their whole source category
+     *             (true), or just one representative question per slot (false). See analyse().
+     * @return array With 'category' (the course's "[shortname] | Quizzes" category), 'built'
+     *               (names of quizzes successfully copied) and 'skipped' (names of quizzes with
+     *               nothing to copy).
+     * @throws \moodle_exception If no quiz in the course had anything to copy.
+     */
+    public static function build_all_subcategories(\stdClass $course, bool $expandrandom = true): array {
+        $parentcategory = self::find_or_create_course_quizzes_category($course);
+
+        $built = [];
+        $skipped = [];
+        $modinfo = get_fast_modinfo($course);
+        foreach ($modinfo->get_instances_of('quiz') as $cm) {
+            try {
+                self::build_subcategory($cm, $course, $expandrandom, $parentcategory);
+                $built[] = $cm->get_formatted_name();
+            } catch (\moodle_exception $e) {
+                $skipped[] = $cm->get_formatted_name();
+            }
+        }
+
+        if (!$built) {
+            throw new \moodle_exception('errornoquestionsbulk', 'block_exportquizquestions');
+        }
+
+        return ['category' => $parentcategory, 'built' => $built, 'skipped' => $skipped];
+    }
+
+    /**
+     * Find the course's "[shortname] | Quizzes" category under the question bank's top category,
+     * or create it. This category holds no questions of its own; it only groups each quiz's
+     * subcategory together.
+     *
+     * @param \stdClass $course The course.
+     * @return \stdClass
+     */
+    private static function find_or_create_course_quizzes_category(\stdClass $course): \stdClass {
+        global $CFG;
+
+        require_once($CFG->libdir . '/questionlib.php');
+
+        $bankcontext = self::resolve_bank_context($course);
+        $top = question_get_top_category($bankcontext->id, true);
+        $name = $course->shortname . ' | Quizzes';
+        return self::find_or_create_subcategory($name, $bankcontext->id, (int) $top->id);
+    }
+
+    /**
+     * Resolve the context a course's question categories live in.
+     *
+     * @param \stdClass $course The course.
+     * @return \context
+     */
+    private static function resolve_bank_context(\stdClass $course): \context {
+        if (class_exists('\core_question\local\bank\question_bank_helper')) {
+            // Moodle 5.0 and later keep question categories in question bank activities.
+            $bank = \core_question\local\bank\question_bank_helper::get_default_open_instance_system_type($course, true);
+            return \context_module::instance($bank->id);
+        }
+        // Moodle 4.x keeps question categories in the course context.
+        return \context_course::instance($course->id);
+    }
+
+    /**
+     * Find the quiz's subcategory under its parent category, or create it.
+     *
+     * @param string $name The subcategory name.
      * @param int $contextid The question bank's module context id.
-     * @param int $parentid The top category id.
+     * @param int $parentid The parent category id.
      * @return \stdClass
      */
     private static function find_or_create_subcategory(string $name, int $contextid, int $parentid): \stdClass {

@@ -6,21 +6,26 @@ those questions come from several different question bank subcategories.
 
 ## Description
 
-The block is added inside a course. It lists the course's quizzes in a dropdown.
-When you export a quiz:
+The block is added inside a course. It lists the course's quizzes in a dropdown, and
+lets you export one quiz or every quiz in the course at once.
 
-1. The quiz's questions are copied into a subcategory named after the quiz, in the
-   course's question bank. Questions are taken from whichever subcategories the quiz
-   uses, so the copy works even when they are spread across several subcategories,
-   banks, or contexts.
-2. That subcategory is exported in the format you chose. The file contains every
-   question in the subcategory, so it can be imported into another course with the
-   regular import.
+Every course gets one `[shortname] | Quizzes` category in the question bank (it holds
+no questions itself) with one subcategory per quiz, named after the quiz, directly
+underneath. When you export:
 
-Each export rebuilds the subcategory, so it always matches the quiz's current questions.
+1. Each quiz's subcategory is rebuilt: emptied, then refilled with the questions that
+   quiz actually uses, taken from whichever subcategories, banks, or contexts the quiz
+   draws from.
+2. The export is in the format you chose, with the category structure embedded in the
+   file. Importing it into another course (even one with no existing question bank
+   structure) recreates the same `[shortname] | Quizzes` category and per-quiz
+   subcategories, with each question back in the right one.
 
-Random question slots have no single fixed question, so the export form lets you choose
-how they're handled: copy only as many questions as the quiz actually uses (one
+Choosing **a specific quiz** exports just that quiz's subcategory. Choosing **all
+quizzes** rebuilds every quiz's subcategory and exports them together in one file.
+
+Random question slots have no single fixed question, so the export form also lets you
+choose how they're handled: copy only as many questions as the quiz actually uses (one
 representative question per random slot, the default), or copy every question in the
 slot's source category (including subcategories and tags, if the filter uses them).
 
@@ -53,9 +58,10 @@ php admin/cli/upgrade.php
 
 1. Open a course and turn editing on.
 2. Add the **Export Quiz Questions** block.
-3. Choose a quiz and a format. If the quiz has random question slots, choose whether to
-   export only as many questions as the quiz uses or every question in their source
-   categories, then select **Export**.
+3. Choose **a specific quiz** or **all quizzes in this course**, and a format. If any
+   quiz involved has random question slots, choose whether to export only as many
+   questions as the quiz uses or every question in their source categories, then
+   select **Export**.
 
 ## Capabilities
 

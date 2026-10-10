@@ -2,6 +2,25 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.2.0 - 2026-10-10
+
+* Restructured where subcategories are created: every course now gets one
+  `[shortname] | Quizzes` category (no questions of its own) with one subcategory per
+  quiz directly underneath, instead of each quiz's subcategory sitting loose under the
+  question bank's top category.
+* Added a "download" choice to the export form: a specific quiz (as before), or every
+  quiz in the course at once. A bulk export rebuilds every quiz's subcategory, skipping
+  any quiz with nothing to export rather than aborting the whole run, then exports all
+  of them together in one file.
+* Exports (single or bulk) now embed category structure in the file. Importing the file
+  into another course, even one with no existing question bank structure, recreates the
+  `[shortname] | Quizzes` category and each quiz's subcategory, with every question back
+  in the right one.
+* Verified against a real 23-quiz course (Moodle 5.3): all 23 subcategories built
+  correctly under the shared parent, and a full export/reimport round trip into a brand
+  new course recreated the entire structure with matching question counts. Verified
+  the same way on Moodle 4.5 LTS with a synthetic multi-quiz course.
+
 ## 1.1.0 - 2026-10-08
 
 * Added a choice to the export form for how random question slots are handled: "Only as

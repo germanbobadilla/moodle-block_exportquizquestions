@@ -105,10 +105,25 @@ class block_exportquizquestions extends block_base {
                 'action' => (new moodle_url('/blocks/exportquizquestions/export.php'))->out(false),
                 'class' => 'block_exportquizquestions_form',
             ]);
+            $html .= html_writer::tag('div', get_string('mode', 'block_exportquizquestions'),
+                ['class' => 'form-label small mb-1']);
+            $html .= html_writer::start_tag('div', ['class' => 'form-check mb-1']);
+            $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'mode', 'value' => 'single',
+                'id' => 'block_exportquizquestions_mode_single', 'class' => 'form-check-input', 'checked' => 'checked']);
+            $html .= html_writer::tag('label', get_string('mode_single', 'block_exportquizquestions'),
+                ['for' => 'block_exportquizquestions_mode_single', 'class' => 'form-check-label small']);
+            $html .= html_writer::end_tag('div');
+            $html .= html_writer::start_tag('div', ['class' => 'form-check mb-2']);
+            $html .= html_writer::empty_tag('input', ['type' => 'radio', 'name' => 'mode', 'value' => 'bulk',
+                'id' => 'block_exportquizquestions_mode_bulk', 'class' => 'form-check-input']);
+            $html .= html_writer::tag('label', get_string('mode_bulk', 'block_exportquizquestions'),
+                ['for' => 'block_exportquizquestions_mode_bulk', 'class' => 'form-check-label small']);
+            $html .= html_writer::end_tag('div');
             $html .= html_writer::tag('label', get_string('quizzes', 'block_exportquizquestions'),
                 ['for' => 'block_exportquizquestions_quiz', 'class' => 'form-label small mb-1']);
             $html .= html_writer::select($options, 'cmid', array_key_first($options), false,
                 ['id' => 'block_exportquizquestions_quiz', 'class' => 'custom-select mb-2']);
+            $html .= html_writer::div(get_string('mode_singlehelp', 'block_exportquizquestions'), 'small text-muted mb-2');
             $html .= html_writer::tag('label', get_string('format', 'block_exportquizquestions'),
                 ['for' => 'block_exportquizquestions_format', 'class' => 'form-label small mb-1']);
             $html .= html_writer::select($formats, 'format', $defaultformat, false,
@@ -127,6 +142,7 @@ class block_exportquizquestions extends block_base {
             $html .= html_writer::tag('label', get_string('randommode_full', 'block_exportquizquestions'),
                 ['for' => 'block_exportquizquestions_randommode_full', 'class' => 'form-check-label small']);
             $html .= html_writer::end_tag('div');
+            $html .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'courseid', 'value' => $course->id]);
             $html .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
             $html .= html_writer::tag('button', get_string('export', 'block_exportquizquestions'),
                 ['type' => 'submit', 'class' => 'btn btn-secondary btn-sm']);
