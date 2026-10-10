@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_exportquizquestions';
-$plugin->version   = 2026101001;
+$plugin->version   = 2026101002;
 $plugin->requires  = 2022041900;
 $plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = '1.2.1';
+$plugin->release   = '1.2.2';

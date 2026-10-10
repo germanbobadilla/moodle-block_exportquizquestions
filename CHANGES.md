@@ -2,6 +2,15 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.2.2 - 2026-10-10
+
+* Fixed: exporting a single quiz no longer embeds category markers in the file. Moodle's
+  own import screen defaults "Get category from file" to checked, which was silently
+  redirecting a re-imported single-quiz file away from whatever category someone picked
+  on the import form, even though nothing about a single quiz's export needs its
+  structure rebuilt elsewhere. Bulk exports still embed markers, since recreating the
+  whole course's structure elsewhere is the actual point of that mode.
+
 ## 1.2.1 - 2026-10-10
 
 * The quiz dropdown is now disabled (and visibly greyed out) whenever "All quizzes in

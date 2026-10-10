@@ -68,9 +68,13 @@ $qformat = new $classname();
 $qformat->setContexts(new \core_question\local\bank\question_edit_contexts($coursecontext));
 $qformat->setCourse($course);
 $qformat->setCategory($exportcategory);
-// Embed category markers so a later import can recreate the "[shortname] | Quizzes" /
-// quiz-name structure in another course, instead of dropping everything into one category.
-$qformat->setCattofile(true);
+// Bulk exports embed category markers, so re-importing the file (even into a course with no
+// existing question bank structure) recreates the "[shortname] | Quizzes" / quiz-name tree.
+// A single quiz's export leaves them out: Moodle's own import screen defaults "Get category
+// from file" to checked, which would otherwise silently redirect the import away from
+// whatever category someone picks, even though they are just re-importing one quiz's worth
+// of questions, not rebuilding a whole course's structure.
+$qformat->setCattofile($mode === 'bulk');
 $qformat->setContexttofile(false);
 
 if (!$qformat->exportpreprocess()) {
