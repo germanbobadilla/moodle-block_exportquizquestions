@@ -65,7 +65,21 @@ if ($mode === 'bulk') {
 require_once($CFG->dirroot . "/question/format/{$format}/format.php");
 $classname = 'qformat_' . $format;
 $qformat = new $classname();
-$qformat->setContexts(new \core_question\local\bank\question_edit_contexts($coursecontext));
+// On Moodle 5.x the exported category lives in a question bank activity's own module context,
+// not the course context, so question_edit_contexts must be built from that context (its parent
+// chain still includes the course context above it) or core's category-path building cannot
+// resolve it. See quiz_question_set::resolve_bank_context().
+//
+// setContexts() must get a plain array, not the question_edit_contexts object itself: every real
+// core caller (question/bank/exporttoxml/exportone.php and friends) passes an array, because
+// context_to_string_translator's constructor does a bare foreach over whatever it is given, and
+// question_edit_contexts has no Iterator/IteratorAggregate implementation and only a *protected*
+// $allcontexts property. Passing the object directly silently iterates zero times, every category
+// lookup comes back undefined, and core emits a PHP warning per category instead of a fatal error
+// (so the export still "succeeds" with malformed category paths) - which is what broke this
+// plugin's exports wherever warnings are displayed to the page.
+$bankcontext = \block_exportquizquestions\quiz_question_set::resolve_bank_context($course);
+$qformat->setContexts((new \core_question\local\bank\question_edit_contexts($bankcontext))->all());
 $qformat->setCourse($course);
 $qformat->setCategory($exportcategory);
 // Bulk exports embed category markers, so re-importing the file (even into a course with no
@@ -77,11 +91,22 @@ $qformat->setCategory($exportcategory);
 $qformat->setCattofile($mode === 'bulk');
 $qformat->setContexttofile(false);
 
-if (!$qformat->exportpreprocess()) {
-    send_file_not_found();
+// Core's own category-path building (used when cattofile is on) can emit PHP warnings on
+// messy real-world data, e.g. a category whose context no longer matches any course it
+// belongs to. PHP keeps going after a warning, so the export itself still completes, but a
+// warning printed straight to the page before send_file() can set its headers breaks the
+// download outright: the browser gets the raw warning text and file content inline instead
+// of a file. Buffering here means a stray warning can never corrupt the actual HTTP response.
+ob_start();
+$preprocessok = $qformat->exportpreprocess();
+$content = $preprocessok ? $qformat->exportprocess(true) : false;
+$straywarnings = ob_get_clean();
+if ($straywarnings !== '') {
+    debugging('block_exportquizquestions: discarded unexpected output during export: ' . $straywarnings,
+        DEBUG_DEVELOPER);
 }
-$content = $qformat->exportprocess(true);
-if (!$content) {
+
+if (!$preprocessok || !$content) {
     send_file_not_found();
 }
 

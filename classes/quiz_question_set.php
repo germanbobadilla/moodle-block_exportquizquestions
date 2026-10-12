@@ -300,7 +300,7 @@ final class quiz_question_set {
         $xmlformat->setCourse($course);
         $xmlformat->setCattofile(false);
         $xmlformat->setContexttofile(false);
-        $xmlformat->setContexts(new \core_question\local\bank\question_edit_contexts($coursecontext));
+        $xmlformat->setContexts((new \core_question\local\bank\question_edit_contexts($coursecontext))->all());
         $xml = $xmlformat->exportprocess(false);
         if (!$xml) {
             throw new \moodle_exception('errorimport', 'block_exportquizquestions');
@@ -313,7 +313,7 @@ final class quiz_question_set {
         try {
             $importer = new \qformat_xml();
             $importer->setCategory($subcategory);
-            $importer->setContexts(new \core_question\local\bank\question_edit_contexts($coursecontext));
+            $importer->setContexts((new \core_question\local\bank\question_edit_contexts($coursecontext))->all());
             $importer->setCourse($course);
             $importer->setFilename($path);
             $importer->setRealfilename(basename($path));
@@ -392,10 +392,17 @@ final class quiz_question_set {
     /**
      * Resolve the context a course's question categories live in.
      *
+     * On Moodle 5.0 and later this is a question bank activity's own module context, not the
+     * course context: a sibling of the course context, not an ancestor of it. Exporting must use
+     * this context (not the course context) when building a question_edit_contexts, or core's own
+     * category-path building (question/format.php's context_to_string_translator) silently fails
+     * to find it and emits PHP warnings for every category, breaking the export's HTTP headers if
+     * those warnings are displayed.
+     *
      * @param \stdClass $course The course.
      * @return \context
      */
-    private static function resolve_bank_context(\stdClass $course): \context {
+    public static function resolve_bank_context(\stdClass $course): \context {
         if (class_exists('\core_question\local\bank\question_bank_helper')) {
             // Moodle 5.0 and later keep question categories in question bank activities.
             $bank = \core_question\local\bank\question_bank_helper::get_default_open_instance_system_type($course, true);

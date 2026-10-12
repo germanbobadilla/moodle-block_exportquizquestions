@@ -2,6 +2,28 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.2.3 - 2026-10-12
+
+* Fixed: bulk exports could come back as the raw export dumped inline in the browser
+  instead of a downloaded file, with PHP warnings visible on the page, on sites that
+  display PHP warnings. Cause: `setContexts()` was called with a `question_edit_contexts`
+  object instead of a plain array of contexts. Core's own category-path building does a
+  bare `foreach` over whatever it's given, and `question_edit_contexts` has no
+  `Iterator`/`IteratorAggregate` implementation and only a *protected* property, so the
+  loop always iterated zero times - every category's context came back unresolved, core
+  emitted a PHP warning per category (continuing rather than failing), and on a site that
+  displays warnings, that output broke the response headers before the actual file could
+  be sent. Every real core caller passes an array (e.g.
+  `$contexts->having_one_edit_tab_cap('export')`); this plugin now does too.
+* Also wrapped the export in output buffering, so any other unexpected output from core
+  during export can never corrupt the download, regardless of cause.
+* This was present in every export this plugin has ever produced with category markers
+  on (bulk mode, and single-quiz mode before 1.2.2); it was invisible on sites that don't
+  display PHP warnings, which is why it went unnoticed until testing against a site that
+  does. Verified by reproducing the exact warning locally against the real course data
+  that triggered it, confirming the fix eliminates it with warnings forced on to match,
+  and a full export/reimport round trip on both Moodle versions.
+
 ## 1.2.2 - 2026-10-10
 
 * Fixed: exporting a single quiz no longer embeds category markers in the file. Moodle's
