@@ -1,0 +1,12 @@
+theme: minima
+title: Export Quiz Questions
+description: >-
+  A Moodle block that exports a quiz's questions, or every quiz's questions in a
+  course, in any installed question format, preserving question bank structure so a
+  re-import recreates it automatically.
+github_username: germanbobadilla
+show_excerpts: false
+header_pages:
+  - installation.md
+  - usage.md
+  - changelog.md
