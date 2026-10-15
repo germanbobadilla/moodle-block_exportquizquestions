@@ -81,14 +81,20 @@ $qformat = new $classname();
 $bankcontext = \block_exportquizquestions\quiz_question_set::resolve_bank_context($course);
 $qformat->setContexts((new \core_question\local\bank\question_edit_contexts($bankcontext))->all());
 $qformat->setCourse($course);
-$qformat->setCategory($exportcategory);
-// Bulk exports embed category markers, so re-importing the file (even into a course with no
-// existing question bank structure) recreates the "[shortname] | Quizzes" / quiz-name tree.
-// A single quiz's export leaves them out: Moodle's own import screen defaults "Get category
-// from file" to checked, which would otherwise silently redirect the import away from
-// whatever category someone picks, even though they are just re-importing one quiz's worth
-// of questions, not rebuilding a whole course's structure.
-$qformat->setCattofile($mode === 'bulk');
+
+if ($mode === 'bulk') {
+    // Bulk exports embed the category's full real ancestry, so re-importing the file (even into
+    // a course with no existing question bank structure) recreates the whole
+    // "[shortname] | Quizzes" / quiz-name tree - that is the actual point of a bulk export.
+    $qformat->setCategory($exportcategory);
+    $qformat->setCattofile(true);
+} else {
+    // A single quiz's export gets a one-level category marker (just the quiz name) spliced in
+    // below, for Moodle XML only - not the subcategory's real ancestry, and not through core's
+    // own cattofile handling. See the comment below for why.
+    $qformat->setQuestions(\block_exportquizquestions\quiz_question_set::load_subcategory_questions($exportcategory));
+    $qformat->setCattofile(false);
+}
 $qformat->setContexttofile(false);
 
 // Core's own category-path building (used when cattofile is on) can emit PHP warnings on
@@ -108,6 +114,24 @@ if ($straywarnings !== '') {
 
 if (!$preprocessok || !$content) {
     send_file_not_found();
+}
+
+// A single quiz's category marker (see above) is spliced in here, after export, rather than
+// included as one of the questions passed to setQuestions(): every item passed that way goes
+// through exportprocess()'s per-question loop, which unconditionally calls
+// question_bank::load_question($question->id) - fine for real questions, but the marker's id is
+// 0 (same as core's own dummy category questions), which doesn't exist in the database and
+// throws. Core only gets away with id=0 because it writes its own dummy questions directly to
+// the output inline, never through that per-item loop. qformat_xml::writequestion() is public,
+// so the marker is written the same way and inserted after the opening <quiz> tag. Only Moodle
+// XML supports category markers at all, so other formats are left exactly as before.
+if ($mode !== 'bulk' && $format === 'xml') {
+    $marker = \block_exportquizquestions\quiz_question_set::build_category_marker($exportcategory);
+    $markerxml = $qformat->writequestion($marker) . "\n";
+    $spliced = str_replace("<quiz>\n", "<quiz>\n" . $markerxml, $content, $spliccount);
+    if ($spliccount === 1) {
+        $content = $spliced;
+    }
 }
 
 $filename = clean_filename($filenamebase) . $qformat->export_file_extension();

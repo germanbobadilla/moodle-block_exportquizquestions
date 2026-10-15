@@ -2,6 +2,24 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.3.0 - 2026-10-15
+
+* A single quiz's Moodle XML export now carries a one-level category marker (just the
+  quiz name). Importing it through Moodle's own import screen - into any existing
+  category, in any course - creates a new subcategory named after the quiz and puts
+  the questions there, instead of adding them straight into whatever category you had
+  selected. Only XML carries this; other formats (GIFT, Aiken, etc.) are unaffected,
+  since they don't support category markers at all.
+* The marker is built and inserted directly, without going through core's own
+  category-marker handling (the code path behind the bug fixed in 1.2.3), so this
+  can't hit that bug even indirectly.
+* Verified against real data on both Moodle 4.5 LTS and 5.3: exported a quiz, imported
+  it into a different course under an arbitrary existing category, and confirmed the
+  quiz-named subcategory was created there with all its questions, with the course's
+  own internal `[shortname] | Quizzes` grouping category correctly left out of it.
+  Also confirmed in production, importing a file exported from this plugin into a
+  Gurnick test server.
+
 ## 1.2.3 - 2026-10-12
 
 * Fixed: bulk exports could come back as the raw export dumped inline in the browser

@@ -334,6 +334,67 @@ final class quiz_question_set {
     }
 
     /**
+     * Load a subcategory's questions for export.
+     *
+     * @param \stdClass $subcategory The subcategory (as returned by build_subcategory()).
+     * @return array Question data objects.
+     */
+    public static function load_subcategory_questions(\stdClass $subcategory): array {
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/question/engine/bank.php');
+
+        $questions = [];
+        $questionids = $DB->get_fieldset_sql(
+            "SELECT qv.questionid
+               FROM {question_bank_entries} qbe
+               JOIN {question_versions} qv ON qv.questionbankentryid = qbe.id
+              WHERE qbe.questioncategoryid = :catid",
+            ['catid' => $subcategory->id]
+        );
+        foreach ($questionids as $questionid) {
+            $questions[] = \question_bank::load_question_data($questionid);
+        }
+
+        return $questions;
+    }
+
+    /**
+     * Build a single-level category marker (just the subcategory's own name) for a subcategory,
+     * instead of its real ancestry.
+     *
+     * Used for single-quiz exports. The subcategory's real parent chain is
+     * "top/[shortname] | Quizzes/QuizName" - embedding that would make importing the file
+     * elsewhere try to recreate this course's own internal grouping category too. A bare
+     * one-level marker instead creates just "QuizName" under wherever the import targets, the
+     * same way any other category-structured export behaves when importing into an existing
+     * category.
+     *
+     * This is not run through qformat_default::exportprocess()'s own category-marker handling:
+     * that derives the path from the category's real contextid and parent via
+     * get_category_path() and the context-to-string translator (the mechanism behind the bug
+     * fixed in 1.2.3). The marker built here is written directly instead (see export.php), so it
+     * never touches that code at all.
+     *
+     * @param \stdClass $subcategory The subcategory (as returned by build_subcategory()).
+     * @return \stdClass A synthetic type='category' question, in the same shape core's own
+     *                   create_dummy_question_representing_category() builds.
+     */
+    public static function build_category_marker(\stdClass $subcategory): \stdClass {
+        $marker = new \stdClass();
+        $marker->qtype = 'category';
+        $marker->category = $subcategory->name;
+        $marker->id = 0;
+        $marker->questiontextformat = '';
+        $marker->contextid = 0;
+        $marker->info = $subcategory->info;
+        $marker->infoformat = $subcategory->infoformat;
+        $marker->idnumber = $subcategory->idnumber;
+        $marker->name = 'Switch category to ' . $subcategory->name;
+        return $marker;
+    }
+
+    /**
      * Rebuild every quiz's subcategory in the course, under one shared "[shortname] | Quizzes"
      * category.
      *

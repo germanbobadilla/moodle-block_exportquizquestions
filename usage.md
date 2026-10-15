@@ -25,15 +25,16 @@ underneath. When you export:
 2. The export is in the format you chose, with the category structure embedded in the
    file.
 
-Importing the file into another course — even one with no existing question bank
-structure — recreates the same `[shortname] | Quizzes` category and per-quiz
+Importing a **bulk** export into another course — even one with no existing question
+bank structure — recreates the same `[shortname] | Quizzes` category and per-quiz
 subcategories automatically, with every question back in the right one.
 
-Single-quiz exports leave the structure markers out: Moodle's own import screen
-defaults "Get category from file" to checked, which would otherwise redirect a
-re-imported single quiz away from whatever category you picked on the import form.
-Bulk exports keep the markers, since rebuilding structure elsewhere is the point of
-that mode.
+Importing a **single quiz's** export (Moodle XML only) creates a new subcategory named
+after the quiz, in whatever category you have selected on Moodle's import screen, and
+puts the questions there — rather than this course's own `[shortname] | Quizzes`
+grouping category, and rather than adding the questions directly into whatever category
+you had selected. Other formats (GIFT, Aiken, etc.) don't support category markers at
+all, so a single quiz's export in those formats is a flat list of questions.
 
 ## Random question slots
 
