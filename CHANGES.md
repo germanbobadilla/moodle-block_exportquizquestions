@@ -2,6 +2,18 @@
 
 All notable changes to this plugin are documented here.
 
+## 1.3.1 - 2026-10-15
+
+* Fixed: a quiz name containing a `/` (e.g. "Exam #1 - ... Ankle & Tib/Fib") broke the
+  1.3.0 single-quiz category marker into two nested categories on import ("Tib" with a
+  "Fib" subcategory inside it), instead of one category with the full, correct name.
+  Moodle's category-path format uses `/` to separate nesting levels, escaped as `//`
+  for a literal slash within a name; the marker now escapes it the same way core's own
+  `assemble_category_path()` does. Bulk exports were never affected, since they already
+  go through that core function directly.
+* Verified against real quiz names containing a slash on both Moodle 4.5 LTS and 5.3:
+  exactly one category created on import, with the full original name restored.
+
 ## 1.3.0 - 2026-10-15
 
 * A single quiz's Moodle XML export now carries a one-level category marker (just the

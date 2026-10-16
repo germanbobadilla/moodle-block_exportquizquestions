@@ -383,7 +383,7 @@ final class quiz_question_set {
     public static function build_category_marker(\stdClass $subcategory): \stdClass {
         $marker = new \stdClass();
         $marker->qtype = 'category';
-        $marker->category = $subcategory->name;
+        $marker->category = self::escape_category_path_segment($subcategory->name);
         $marker->id = 0;
         $marker->questiontextformat = '';
         $marker->contextid = 0;
@@ -392,6 +392,31 @@ final class quiz_question_set {
         $marker->idnumber = $subcategory->idnumber;
         $marker->name = 'Switch category to ' . $subcategory->name;
         return $marker;
+    }
+
+    /**
+     * Escape a single category name for use in a Moodle category path string.
+     *
+     * Category paths use "/" to separate nesting levels (see
+     * qformat_default::assemble_category_path() and split_category_path()), so a literal "/"
+     * inside a category's own name - a quiz name containing one, for example - must be escaped
+     * as "//" or it gets parsed as an extra level of nesting instead of a literal character. A
+     * name starting or ending with a slash gets a padding space too, matching core exactly, so a
+     * leading/trailing "//" after escaping is never mistaken for part of the separator pattern
+     * on either side.
+     *
+     * @param string $name The raw category name.
+     * @return string The name, escaped for use as one segment of a category path.
+     */
+    private static function escape_category_path_segment(string $name): string {
+        $escaped = str_replace('/', '//', $name);
+        if (substr($escaped, 0, 1) === '/') {
+            $escaped = ' ' . $escaped;
+        }
+        if (substr($escaped, -1) === '/') {
+            $escaped = $escaped . ' ';
+        }
+        return $escaped;
     }
 
     /**
